@@ -1,0 +1,10 @@
+[DB] 数据库表结构已就绪
+[Server] SQLite 数据库已加载 (sql.js/WebAssembly)
+================================================
+  B2B酒店查询预订平台 - 服务已启动
+  客户前端: http://localhost:8766
+  管理后台: http://localhost:8766/admin
+  API文档: http://localhost:8766/api
+  数据库: SQLite (sql.js/WebAssembly)
+  局域网: http://192.168.0.70:8766
+================================================
