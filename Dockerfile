@@ -1,12 +1,12 @@
-FROM node:18-alpine
+FROM node:18-slim
 
 # 修改此值强制清除构建缓存
-ARG CACHE_BUST=8
+ARG CACHE_BUST=9
 
 WORKDIR /app
 
 # CACHE_BUST 必须在 COPY 之前，才能让 COPY 层也失效
-RUN echo "Cache bust: $CACHE_BUST"
+RUN echo "Cache bust: $CACHE_BUST" && npm cache clean --force
 
 COPY backend/package.json backend/package-lock.json ./backend/
 RUN cd backend && npm ci --omit=dev
