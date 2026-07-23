@@ -1,0 +1,19 @@
+{
+  "name": "hotel-b2b-backend",
+  "version": "1.0.0",
+  "description": "B2B酒店查询预订平台 - API后端",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "init-db": "node src/db/init.js",
+    "seed": "node src/seeds/seed.js"
+  },
+  "dependencies": {
+    "sql.js": "^1.10.3",
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.2",
+    "cors": "^2.8.5",
+    "multer": "^1.4.5-lts.1",
+    "xlsx": "^0.18.5"
+  }
+}

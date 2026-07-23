@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>B2B 酒店查询预订平台</title>
+  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/element-plus"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:#f0f2f5}
+    .login-container{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%)}
+    .login-box{width:400px;padding:40px;background:white;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+    .login-box h1{text-align:center;color:#1a1a2e;margin-bottom:8px;font-size:24px}
+    .login-box p{text-align:center;color:#909399;margin-bottom:32px;font-size:14px}
+    .layout{display:flex;min-height:100vh}
+    .sidebar{width:220px;background:linear-gradient(180deg,#1a1a2e 0%,#16213e 100%);padding:20px 0;position:fixed;top:0;left:0;bottom:0;z-index:10}
+    .sidebar .logo{padding:0 20px 24px;color:#fff;font-size:18px;font-weight:700;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:8px;text-align:center}
+    .sidebar .logo span{display:block;font-size:11px;color:rgba(255,255,255,.5);margin-top:4px;font-weight:400}
+    .nav-item{display:flex;align-items:center;gap:10px;padding:12px 24px;color:rgba(255,255,255,.7);cursor:pointer;transition:all .2s;font-size:14px;border-left:3px solid transparent}
+    .nav-item:hover{background:rgba(255,255,255,.05);color:#fff}
+    .nav-item.active{background:rgba(255,255,255,.08);color:#409eff;border-left-color:#409eff}
+    .nav-item .icon{font-size:18px;width:20px;text-align:center}
+    .main{flex:1;margin-left:220px;padding:24px;min-width:0}
+    .header{background:white;border-radius:8px;padding:16px 24px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+    .header h2{font-size:18px;color:#303133}
+    .header .right{display:flex;align-items:center;gap:16px;font-size:14px}
+    .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:24px}
+    .stat-card{background:white;border-radius:8px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+    .stat-card .label{font-size:13px;color:#909399;margin-bottom:8px}
+    .stat-card .value{font-size:28px;font-weight:700;color:#303133}
+    .stat-card .value.blue{color:#409eff}
+    .stat-card .value.green{color:#67c23a}
+    .stat-card .value.orange{color:#e6a23c}
+    .stat-card .value.red{color:#f56c6c}
+    .content-card{background:white;border-radius:8px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:16px}
+    .price-low{color:#67c23a;font-weight:600}
+    .price-high{color:#f56c6c;font-weight:600}
+    .price-table{font-size:13px}
+    .price-table th{background:#f5f7fa}
+    .price-table td{padding:6px 10px!important}
+    .tag-ota{background:#ecf5ff;color:#409eff;border:1px solid #d9ecff;padding:2px 8px;border-radius:4px;font-size:12px;margin-right:4px}
+    .tag-direct{background:#f0f9eb;color:#67c23a;border:1px solid #e1f3d8;padding:2px 8px;border-radius:4px;font-size:12px}
+    .tag-full{background:#fef0f0;color:#f56c6c;padding:2px 8px;border-radius:4px;font-size:11px}
+    .tag-low{background:#fdf6ec;color:#e6a23c;padding:2px 8px;border-radius:4px;font-size:11px}
+    .tag-group{background:#fef0f0;color:#e6a23c;border:1px solid #faecd8;padding:2px 8px;border-radius:4px;font-size:11px;margin-left:4px}
+    .hotel-card{cursor:pointer;border:1px solid #ebeef5;border-radius:8px;padding:16px;margin-bottom:12px;transition:all .2s}
+    .hotel-card:hover{border-color:#409eff;box-shadow:0 2px 12px rgba(64,158,255,.15)}
+    .hotel-card .name{font-size:16px;font-weight:600;color:#303133;margin-bottom:4px}
+    .hotel-card .info{font-size:12px;color:#909399}
+    .saving{cursor:pointer;border-bottom:1px dashed #409eff;color:#409eff;font-weight:600;transition:all .2s}
+    .saving:hover{color:#f56c6c;border-color:#f56c6c}
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- 登录 -->
+  <div v-if="!token" class="login-container">
+    <div class="login-box">
+      <h1>B2B 酒店平台</h1>
+      <p>酒店查询与预订管理</p>
+      <el-form @submit.prevent="login">
+        <el-form-item><el-input v-model="loginForm.username" placeholder="用户名" size="large" autofocus/></el-form-item>
+        <el-form-item><el-input v-model="loginForm.password" type="password" placeholder="密码" size="large" show-password @keyup.enter="login"/></el-form-item>
+        <el-button type="primary" size="large" @click="login" :loading="loading" style="width:100%">登 录</el-button>
+      </el-form>
+      <div style="margin-top:16px;font-size:12px;color:#909399;text-align:center">初始账号: admin / admin123</div>
+    </div>
+  </div>
+
+  <!-- 主界面 -->
+  <div v-else class="layout">
+    <div class="sidebar">
+      <div class="logo">B2B 酒店平台<span>{{user.nickname}}, {{user.role==='admin'?'管理员':user.role==='manager'?'经理':'员工'}}</span></div>
+      <div v-for="m in visibleMenu" :key="m.id" :class="['nav-item',{active:currentMenu===m.id}]" @click="switchMenu(m.id)">
+        <span class="icon">{{m.icon}}</span>{{m.label}}
+      </div>
+      <div class="nav-item" @click="logout" style="margin-top:32px;border-top:1px solid rgba(255,255,255,.1);padding-top:20px">
+        <span class="icon">↩</span>退出登录
+      </div>
+    </div>
+
+    <div class="main">
+      <!-- 概览 -->
+      <template v-if="currentMenu==='dashboard'">
+        <div class="header"><h2>数据概览</h2></div>
+        <div class="card-grid">
+          <div class="stat-card"><div class="label">直签酒店</div><div class="value blue">{{stats.hotels}}</div></div>
+          <div class="stat-card"><div class="label">房型总数</div><div class="value">{{stats.rooms}}</div></div>
+          <div class="stat-card"><div class="label">直签房价</div><div class="value green">{{ftn(stats.direct_prices)}}</div></div>
+          <div class="stat-card"><div class="label">OTA 价格</div><div class="value">{{ftn(stats.ota_prices)}}</div></div>
+          <div class="stat-card"><div class="label">订单数</div><div class="value">{{stats.orders}}</div></div>
+          <div class="stat-card"><div class="label">营收</div><div class="value green">¥{{ftn(stats.revenue)}}</div></div>
+          <div class="stat-card"><div class="label">低库存预警</div><div class="value orange">{{stats.low_stock}}</div></div>
+        </div>
+        <div class="content-card">
+          <div style="font-size:15px;font-weight:600;margin-bottom:12px">最近酒店列表</div>
+          <el-table :data="stats.hotelList" size="small" stripe max-height="400">
+            <el-table-column prop="id" label="ID" width="60"/>
+            <el-table-column prop="name_cn" label="酒店名称" min-width="200"/>
+            <el-table-column prop="star_rating" label="星级" width="80"><template #default="{row}">{{'★'.repeat(row.star_rating)}}</template></el-table-column>
+            <el-table-column prop="source" label="类型" width="80"><template #default="{row}"><span :class="row.source==='direct'?'tag-direct':'tag-ota'">{{row.source==='direct'?'直签':'OTA'}}</span></template></el-table-column>
+            <el-table-column label="操作" width="120"><template #default="{row}"><el-button size="small" type="primary" link @click="viewHotel(row)">查看</el-button></template></el-table-column>
+          </el-table>
+        </div>
+      </template>
+
+      <!-- 酒店查询 -->
+      <template v-if="currentMenu==='hotels'">
+        <div class="header"><h2>酒店查询与价格对比</h2></div>
+        <div class="content-card">
+          <el-form :inline="true" size="default">
+            <el-form-item label="关键词"><el-input v-model="hotelSearch.keyword" placeholder="酒店名称/地址" clearable style="width:200px"/></el-form-item>
+            <el-form-item label="价格日期"><el-date-picker v-model="hotelSearch.date" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" style="width:150px"/></el-form-item>
+            <el-form-item label="星级"><el-select v-model="hotelSearch.star" placeholder="不限" clearable style="width:100px"><el-option v-for="i in [3,4,5]" :key="i" :label="i+'星'" :value="i"/></el-select></el-form-item>
+            <el-form-item label="来源"><el-select v-model="hotelSearch.source" placeholder="全部" clearable style="width:110px"><el-option label="公司直签" value="direct"/><el-option label="OTA渠道" value="ota"/></el-select></el-form-item>
+            <el-form-item><el-button type="primary" @click="searchHotels" :loading="searchLoading">搜索</el-button></el-form-item>
+          </el-form>
+          <div v-if="searchResult.length" style="margin-top:16px">
+            <div style="font-size:13px;color:#909399;margin-bottom:8px">共 {{searchResult.length}} 家酒店 · 日期 {{hotelSearch.date || today}}</div>
+            <div v-for="h in searchResult" :key="h.hotel_id" class="hotel-card" @click="viewHotelDetail(h)">
+              <div class="name">
+                <span :class="h.source==='direct'?'tag-direct':'tag-ota'" style="margin-right:6px;vertical-align:middle">{{h.source==='direct'?'直签':'OTA'}}</span>
+                {{h.hotel_name}}
+                <span style="font-size:12px;color:#f7ba2a">{{'★'.repeat(h.star_rating)}}</span>
+              </div>
+              <div class="info">{{h.rooms.length}} 个房型 · 最低 ¥{{minPrice(h)}}/晚 · {{h.source==='direct'?'公司直签价':'OTA渠道价'}}<span v-if="hasGroupRoom(h)" class="tag-group">团房(5间起)</span></div>
+            </div>
+          </div>
+          <el-empty v-else-if="!searchLoading" description="搜索酒店查看价格对比"/>
+        </div>
+      </template>
+
+      <!-- 酒店详情弹窗 -->
+      <el-dialog v-model="hotelDetailVisible" :title="hotelDetail?.hotel_name+' - 价格对比'" width="90%" top="5vh" destroy-on-close>
+        <div style="margin-bottom:12px">
+          <el-tag size="small" :type="hotelDetail?.source==='direct'?'success':''">{{hotelDetail?.source==='direct'?'公司直签':'OTA渠道'}}</el-tag>
+          日期: {{hotelDetail?.date || today}}
+        </div>
+        <el-table :data="hotelDetail?.rooms" size="small" stripe border max-height="500" class="price-table">
+          <el-table-column prop="room_name" label="房型" width="180" fixed/>
+          <el-table-column prop="bed_type" label="床型" width="100"/>
+          <el-table-column prop="meal_plan" label="餐食" width="100"/>
+          <el-table-column label="合同价" width="100" align="right"><template #default="{row}"><span class="saving" @click="copyPrice(row.direct?.contract_price)">¥{{row.direct?.contract_price||'-'}}</span></template></el-table-column>
+          <el-table-column label="销售价" width="100" align="right"><template #default="{row}"><b :class="row.direct?.sales_price?'price-low':''">¥{{row.direct?.sales_price||'-'}}</b></template></el-table-column>
+          <el-table-column label="携程价" width="100" align="right"><template #default="{row}"><span :class="(row.ota?.ctrip?.ota_price||0)>0?'price-high':''">¥{{row.ota?.ctrip?.ota_price||'-'}}</span></template></el-table-column>
+          <el-table-column label="Booking价" width="100" align="right"><template #default="{row}"><span :class="(row.ota?.booking?.ota_price||0)>0?'price-high':''">¥{{row.ota?.booking?.ota_price||'-'}}</span></template></el-table-column>
+          <el-table-column label="可用" width="70" align="center"><template #default="{row}">{{row.inventory?.available_rooms!==undefined?row.inventory.available_rooms:'-'}}</template></el-table-column>
+          <el-table-column label="起订" width="70" align="center"><template #default="{row}"><span v-if="row.min_rooms>=5" class="tag-group">团{{row.min_rooms}}间</span><span v-else style="color:#909399;font-size:11px">1间</span></template></el-table-column>
+          <el-table-column label="状态" width="80" align="center"><template #default="{row}"><span v-if="row.inventory?.available_rooms===0" class="tag-full">售罄</span><span v-else-if="row.inventory?.available_rooms<=3" class="tag-low">紧张</span><span v-else style="font-size:11px;color:#67c23a">有房</span></template></el-table-column>
+          <el-table-column label="操作" width="100" fixed="right"><template #default="{row}"><el-button size="small" type="primary" @click="quickBook(row)" :disabled="!row.direct">下单</el-button></template></el-table-column>
+        </el-table>
+      </el-dialog>
+
+      <!-- 用户编辑弹窗 -->
+      <el-dialog v-model="userDialogVisible" :title="editingUser?'编辑用户':'新建用户'" width="500px" destroy-on-close>
+        <el-form :model="userForm" label-width="80px" size="default">
+          <el-form-item label="用户名"><el-input v-model="userForm.username" placeholder="登录用户名" :disabled="!!editingUser"/></el-form-item>
+          <el-form-item label="密码" v-if="!editingUser"><el-input v-model="userForm.password" type="password" placeholder="至少6位" show-password/></el-form-item>
+          <el-form-item label="昵称"><el-input v-model="userForm.nickname" placeholder="显示名称"/></el-form-item>
+          <el-form-item label="手机号"><el-input v-model="userForm.phone" placeholder="手机号码"/></el-form-item>
+          <el-form-item label="角色"><el-select v-model="userForm.role" style="width:100%"><el-option label="管理员" value="admin"/><el-option label="经理" value="manager"/><el-option label="员工" value="staff"/></el-select></el-form-item>
+        </el-form>
+        <template #footer><el-button @click="userDialogVisible=false">取消</el-button><el-button type="primary" @click="saveUser" :loading="userSaving">保存</el-button></template>
+      </el-dialog>
+
+      <!-- 密码重置弹窗 -->
+      <el-dialog v-model="pwdDialogVisible" title="重置密码" width="420px" destroy-on-close>
+        <el-form label-width="80px" size="default">
+          <el-form-item label="用户">{{resetPwdUser?.nickname}} ({{resetPwdUser?.username}})</el-form-item>
+          <el-form-item label="新密码"><el-input v-model="resetPwdForm.password" type="password" placeholder="至少6位" show-password/></el-form-item>
+        </el-form>
+        <template #footer><el-button @click="pwdDialogVisible=false">取消</el-button><el-button type="primary" @click="resetPassword" :loading="pwdSaving">确认重置</el-button></template>
+      </el-dialog>
+
+      <!-- 订单管理 -->
+      <template v-if="currentMenu==='orders'">
+        <div class="header"><h2>订单管理</h2></div>
+        <div class="content-card">
+          <el-form :inline="true" size="default">
+            <el-form-item label="酒店"><el-select v-model="orderFilter.hotel_id" placeholder="全部" clearable filterable style="width:200px"><el-option v-for="h in stats.hotelList" :key="h.id" :label="h.name_cn" :value="h.id"/></el-select></el-form-item>
+            <el-form-item label="状态"><el-select v-model="orderFilter.status" placeholder="全部" clearable style="width:120px"><el-option label="已确认" value="confirmed"/><el-option label="已完成" value="completed"/><el-option label="已取消" value="cancelled"/></el-select></el-form-item>
+            <el-form-item><el-button type="primary" @click="loadOrders">查询</el-button></el-form-item>
+          </el-form>
+          <el-table :data="orders" size="small" stripe max-height="450">
+            <el-table-column prop="order_no" label="订单号" width="140"/>
+            <el-table-column prop="hotel_name" label="酒店" min-width="160"/>
+            <el-table-column prop="room_name" label="房型" width="140"/>
+            <el-table-column prop="check_in" label="入住" width="100"/>
+            <el-table-column prop="check_out" label="离店" width="100"/>
+            <el-table-column prop="nights" label="晚" width="50"/>
+            <el-table-column prop="room_count" label="间" width="50"/>
+            <el-table-column label="总价" width="100" align="right"><template #default="{row}">¥{{row.total_price}}</template></el-table-column>
+            <el-table-column label="状态" width="80"><template #default="{row}"><el-tag :type="row.status==='confirmed'?'success':row.status==='cancelled'?'danger':'info'" size="small">{{row.status==='confirmed'?'已确认':row.status==='cancelled'?'已取消':'已完成'}}</el-tag></template></el-table-column>
+            <el-table-column prop="source" label="来源" width="80"/>
+            <el-table-column label="操作" width="80" fixed="right"><template #default="{row}"><el-button v-if="row.status==='confirmed'||row.status==='completed'" size="small" type="danger" link @click="cancelOrder(row)">取消</el-button></template></el-table-column>
+          </el-table>
+        </div>
+
+        <!-- 快速下单 -->
+        <div class="content-card">
+          <div style="font-size:15px;font-weight:600;margin-bottom:12px">快速下单</div>
+          <el-form :inline="true" size="default">
+            <el-form-item label="酒店"><el-select v-model="bookForm.hotel_id" placeholder="选择酒店" filterable @change="loadRooms" style="width:200px"><el-option v-for="h in stats.hotelList" :key="h.id" :label="h.name_cn" :value="h.id"/></el-select></el-form-item>
+            <el-form-item label="房型"><el-select v-model="bookForm.room_type_id" placeholder="选择房型" filterable style="width:200px"><el-option v-for="r in bookRooms" :key="r.id" :label="r.name_cn" :value="r.id"/></el-select></el-form-item>
+            <el-form-item label="入住"><el-date-picker v-model="bookForm.check_in" type="date" value-format="YYYY-MM-DD" style="width:140px"/></el-form-item>
+            <el-form-item label="离店"><el-date-picker v-model="bookForm.check_out" type="date" value-format="YYYY-MM-DD" style="width:140px"/></el-form-item>
+            <el-form-item label="间数"><el-input-number v-model="bookForm.room_count" :min="bookMinRooms" :max="10" style="width:80px"/></el-form-item>
+            <el-form-item label="姓名"><el-input v-model="bookForm.guest_name" style="width:120px"/></el-form-item>
+            <el-form-item label="电话"><el-input v-model="bookForm.guest_phone" style="width:140px"/></el-form-item>
+            <el-form-item label="来源"><el-select v-model="bookForm.source" style="width:100px"><el-option label="手动" value="manual"/><el-option label="携程" value="ctrip"/><el-option label="Booking" value="booking"/></el-select></el-form-item>
+            <el-form-item><el-button type="primary" @click="createBooking" :loading="bookingLoading">提交订单</el-button></el-form-item>
+          </el-form>
+        </div>
+      </template>
+
+      <!-- 库存预警 -->
+      <template v-if="currentMenu==='inventory'">
+        <div class="header"><h2>库存预警</h2></div>
+        <div class="content-card">
+          <el-form :inline="true" size="default">
+            <el-form-item label="阈值(≤间)"><el-input-number v-model="alertThreshold" :min="1" :max="50" @change="loadAlerts"/></el-form-item>
+            <el-form-item><el-button type="primary" @click="loadAlerts">刷新</el-button></el-form-item>
+          </el-form>
+          <el-table :data="alerts" size="small" stripe max-height="500">
+            <el-table-column prop="hotel_name" label="酒店" min-width="160"/>
+            <el-table-column prop="room_name" label="房型" min-width="140"/>
+            <el-table-column prop="date" label="日期" width="110"/>
+            <el-table-column prop="total_rooms" label="总库存" width="80"/>
+            <el-table-column prop="booked_rooms" label="已订" width="70"/>
+            <el-table-column label="剩余" width="80" align="center"><template #default="{row}"><span :style="{color:row.available_rooms===0?'#f56c6c':row.available_rooms<=2?'#e6a23c':'#409eff',fontWeight:'bold',fontSize:'16px'}">{{row.available_rooms}}</span></template></el-table-column>
+            <el-table-column label="状态" width="80"><template #default="{row}"><span v-if="row.available_rooms===0" class="tag-full">售罄</span><span v-else class="tag-low">低库存</span></template></el-table-column>
+          </el-table>
+          <el-empty v-if="!alerts.length" description="暂无低库存预警"/>
+        </div>
+      </template>
+
+      <!-- 数据导入 -->
+      <template v-if="currentMenu==='import'">
+        <div class="header"><h2>数据导入 / OTA同步</h2></div>
+        <div class="content-card">
+          <div style="font-size:15px;font-weight:600;margin-bottom:12px">Excel/CSV 导入价格</div>
+          <el-upload drag :action="apiBase+'/sync/import/excel'" :headers="uploadHeaders" :on-success="onImportSuccess" :on-error="onImportError" accept=".xlsx,.xls,.csv">
+            <el-icon style="font-size:48px;color:#c0c4cc;margin-bottom:8px">+</el-icon>
+            <div style="color:#606266">将文件拖到此处，或<em>点击上传</em></div>
+            <template #tip><div style="color:#909399;font-size:12px;margin-top:8px">支持 Excel (.xlsx/.xls) 和 CSV 格式，字段：room_type_id, date, contract_price, sales_price, ota_price, ota_source, total_rooms</div></template>
+          </el-upload>
+        </div>
+        <div class="content-card" style="margin-top:16px">
+          <div style="font-size:15px;font-weight:600;margin-bottom:12px">OTA 接口对接（预留）</div>
+          <el-alert title="以下接口已预留，对接真实 OTA API 后启用" type="info" :closable="false" style="margin-bottom:12px"/>
+          <el-descriptions border :column="2">
+            <el-descriptions-item label="OTA 推送价格">POST /api/sync/ota/push</el-descriptions-item>
+            <el-descriptions-item label="OTA 拉取价格">POST /api/sync/ota/pull</el-descriptions-item>
+            <el-descriptions-item label="导入 Excel">POST /api/sync/import/excel</el-descriptions-item>
+            <el-descriptions-item label="同步日志">GET /api/sync/logs</el-descriptions-item>
+          </el-descriptions>
+        </div>
+      </template>
+
+      <!-- 账号管理 -->
+      <template v-if="currentMenu==='users'">
+        <div class="header">
+          <h2>账号管理</h2>
+          <div><el-button type="primary" size="default" @click="showUserDialog(null)">+ 新建用户</el-button></div>
+        </div>
+        <div class="content-card">
+          <el-form :inline="true" size="default">
+            <el-form-item label="搜索"><el-input v-model="userFilter.keyword" placeholder="用户名/昵称/手机" clearable @clear="loadUsers" style="width:180px"/></el-form-item>
+            <el-form-item label="角色"><el-select v-model="userFilter.role" placeholder="全部" clearable style="width:110px" @change="loadUsers"><el-option label="管理员" value="admin"/><el-option label="经理" value="manager"/><el-option label="员工" value="staff"/></el-select></el-form-item>
+            <el-form-item label="状态"><el-select v-model="userFilter.status" placeholder="全部" clearable style="width:100px" @change="loadUsers"><el-option label="正常" value="active"/><el-option label="已停用" value="inactive"/></el-select></el-form-item>
+            <el-form-item><el-button type="primary" @click="loadUsers">查询</el-button></el-form-item>
+          </el-form>
+          <el-table :data="userList" size="small" stripe max-height="500">
+            <el-table-column prop="id" label="ID" width="60"/>
+            <el-table-column prop="username" label="用户名" width="120"/>
+            <el-table-column prop="nickname" label="昵称" width="120"/>
+            <el-table-column prop="phone" label="手机号" width="140"/>
+            <el-table-column label="角色" width="90"><template #default="{row}"><el-tag :type="row.role==='admin'?'danger':row.role==='manager'?'warning':'info'" size="small">{{row.role==='admin'?'管理员':row.role==='manager'?'经理':'员工'}}</el-tag></template></el-table-column>
+            <el-table-column label="状态" width="80"><template #default="{row}"><el-tag :type="row.status==='active'?'success':'danger'" size="small">{{row.status==='active'?'正常':'已停用'}}</el-tag></template></el-table-column>
+            <el-table-column prop="created_at" label="创建时间" width="160"/>
+            <el-table-column label="操作" min-width="240" fixed="right">
+              <template #default="{row}">
+                <el-button size="small" @click="showUserDialog(row)">编辑</el-button>
+                <el-button size="small" type="warning" @click="showPwdDialog(row)">改密</el-button>
+                <el-button size="small" :type="row.status==='active'?'danger':'success'" @click="toggleUserStatus(row)">{{row.status==='active'?'停用':'启用'}}</el-button>
+                <el-popconfirm title="确定删除此用户?" @confirm="deleteUser(row)" v-if="row.id!==user.id">
+                  <template #reference><el-button size="small" type="danger">删除</el-button></template>
+                </el-popconfirm>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </template>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, reactive, computed, onMounted, nextTick } = Vue;
+
+createApp({
+  setup() {
+    const API = ''; // 同域
+    const today = new Date().toISOString().split('T')[0];
+    const token = ref(localStorage.getItem('b2b_token')||'');
+    const user = reactive({});
+    const loading = ref(false);
+    const currentMenu = ref('dashboard');
+
+    // 登录
+    const loginForm = reactive({username:'admin',password:'admin123'});
+    async function login() {
+      loading.value = true;
+      try {
+        const r = await fetch(API+'/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(loginForm)}).then(r=>r.json());
+        if(r.code===200){
+          token.value = r.data.token;
+          Object.assign(user, r.data.user);
+          localStorage.setItem('b2b_token', token.value);
+          await loadStats();
+        } else { ElementPlus.ElMessage.error(r.msg); }
+      } catch(e) { ElementPlus.ElMessage.error('登录失败'); }
+      loading.value = false;
+    }
+    function logout(){ token.value=''; localStorage.removeItem('b2b_token'); }
+
+    // Stats
+    const stats = reactive({hotels:0,rooms:0,direct_prices:0,ota_prices:0,orders:0,revenue:0,low_stock:0,hotelList:[]});
+    async function loadStats() {
+      try {
+        const r = await fetch(API+'/api/stats',{headers:authHeaders()}).then(r=>r.json());
+        if(r.code===200) Object.assign(stats, r.data);
+        const hl = await fetch(API+'/api/hotels?pageSize=100',{headers:authHeaders()}).then(r=>r.json());
+        if(hl.code===200) stats.hotelList = hl.data.list;
+        stats.rooms = hl.data.list.reduce((s,h)=>s+(h.rooms||[]).length,0) || stats.rooms;
+      } catch(e) { console.log(e); }
+    }
+
+    // 酒店搜索
+    const hotelSearch = reactive({keyword:'',date:'',star:null,source:'direct'});
+    const searchResult = ref([]);
+    const searchLoading = ref(false);
+    async function searchHotels() {
+      searchLoading.value = true;
+      try {
+        const p = new URLSearchParams();
+        if(hotelSearch.keyword) p.set('keyword', hotelSearch.keyword);
+        if(hotelSearch.date) p.set('date', hotelSearch.date);
+        if(hotelSearch.star) p.set('star_rating', hotelSearch.star);
+        if(hotelSearch.source) p.set('source', hotelSearch.source);
+        const r = await fetch(API+'/api/hotels/search/prices?'+p,{headers:authHeaders()}).then(r=>r.json());
+        searchResult.value = r.code===200 ? r.data.hotels : [];
+      } catch(e) { searchResult.value = []; }
+      searchLoading.value = false;
+    }
+    function minPrice(h) {
+      let min = Infinity;
+      h.rooms.forEach(r => { if(r.direct?.sales_price) min = Math.min(min, r.direct.sales_price); });
+      return min===Infinity?'--':min;
+    }
+    function hasGroupRoom(h) { return h.rooms.some(r => r.min_rooms && r.min_rooms >= 5); }
+    function viewHotel(h) { currentMenu.value='hotels'; hotelSearch.keyword=h.name_cn; nextTick(()=>searchHotels()); }
+
+    // 酒店详情弹窗
+    const hotelDetailVisible = ref(false);
+    const hotelDetail = ref(null);
+    async function viewHotelDetail(h) {
+      const r = await fetch(API+'/api/hotels/'+h.hotel_id+'/compare?date='+(hotelSearch.date||today),{headers:authHeaders()}).then(r=>r.json());
+      if(r.code===200) {
+        hotelDetail.value = { ...r.data, hotel_name: h.hotel_name, star_rating: h.star_rating, source: h.source };
+        hotelDetailVisible.value = true;
+      }
+    }
+    function copyPrice(p){ if(p) { navigator.clipboard.writeText(String(p)); ElementPlus.ElMessage.success('已复制: ¥'+p); } }
+
+    // 订单
+    const orders = ref([]);
+    const orderFilter = reactive({hotel_id:null,status:null});
+    async function loadOrders() {
+      const p = new URLSearchParams();
+      if(orderFilter.hotel_id) p.set('hotel_id', orderFilter.hotel_id);
+      if(orderFilter.status) p.set('status', orderFilter.status);
+      const r = await fetch(API+'/api/bookings?'+p,{headers:authHeaders()}).then(r=>r.json());
+      orders.value = r.code===200 ? r.data.list : [];
+    }
+    async function cancelOrder(o) {
+      try {
+        await ElementPlus.ElMessageBox.confirm('确定取消订单 '+o.order_no+'？');
+        const r = await fetch(API+'/api/bookings/'+o.id+'/cancel',{method:'PUT',headers:authHeaders()}).then(r=>r.json());
+        if(r.code===200) { ElementPlus.ElMessage.success('已取消'); loadOrders(); } else ElementPlus.ElMessage.error(r.msg);
+      } catch(_) {}
+    }
+    const bookingLoading = ref(false);
+    const bookForm = reactive({hotel_id:null,room_type_id:null,check_in:'',check_out:'',room_count:1,guest_name:'',guest_phone:'',source:'manual'});
+    const bookRooms = ref([]);
+    const bookMinRooms = computed(() => {
+      const sel = bookRooms.value.find(r => r.id === bookForm.room_type_id);
+      return sel?.min_rooms || 1;
+    });
+    async function loadRooms() {
+      if(!bookForm.hotel_id) { bookRooms.value=[]; return; }
+      const r = await fetch(API+'/api/hotels/'+bookForm.hotel_id,{headers:authHeaders()}).then(r=>r.json());
+      bookRooms.value = r.code===200 ? r.data.rooms : [];
+    }
+    async function createBooking() {
+      if(!bookForm.hotel_id||!bookForm.room_type_id||!bookForm.check_in||!bookForm.check_out) return ElementPlus.ElMessage.warning('请填写完整信息');
+      bookingLoading.value = true;
+      const r = await fetch(API+'/api/bookings',{method:'POST',headers:{...authHeaders(),'Content-Type':'application/json'},body:JSON.stringify(bookForm)}).then(r=>r.json());
+      bookingLoading.value = false;
+      if(r.code===200) { ElementPlus.ElMessage.success('订单创建成功: '+r.data.order_no); loadOrders(); loadStats(); } else ElementPlus.ElMessage.error(r.msg);
+    }
+    function quickBook(row) {
+      currentMenu.value = 'orders';
+      nextTick(() => {
+        bookForm.room_type_id = row.room_type_id;
+        bookForm.hotel_id = hotelDetail.value?.hotel_id;
+        bookForm.check_in = hotelDetail.value?.date;
+        const d = new Date(bookForm.check_in+'T00:00:00'); d.setDate(d.getDate()+1);
+        bookForm.check_out = d.toISOString().split('T')[0];
+        bookForm.room_count = row.min_rooms && row.min_rooms >= 5 ? row.min_rooms : 1;
+        loadRooms();
+      });
+    }
+
+    // 库存预警
+    const alertThreshold = ref(5);
+    const alerts = ref([]);
+    async function loadAlerts() {
+      const r = await fetch(API+'/api/inventory/alerts?threshold='+alertThreshold.value,{headers:authHeaders()}).then(r=>r.json());
+      alerts.value = r.code===200 ? r.data.alerts : [];
+    }
+
+    // 数据导入
+    const uploadHeaders = computed(() => authHeaders());
+    function onImportSuccess(res) { ElementPlus.ElMessage.success(res.msg); loadStats(); }
+    function onImportError() { ElementPlus.ElMessage.error('导入失败'); }
+
+    // 账号管理
+    const visibleMenu = computed(() => {
+      return user.role === 'admin' ? menu : menu.filter(m => !m.admin);
+    });
+    const userList = ref([]);
+    const userFilter = reactive({keyword:'',role:'',status:''});
+    async function loadUsers() {
+      const p = new URLSearchParams();
+      if(userFilter.keyword) p.set('keyword', userFilter.keyword);
+      if(userFilter.role) p.set('role', userFilter.role);
+      if(userFilter.status) p.set('status', userFilter.status);
+      const r = await fetch(API+'/api/users?'+p,{headers:authHeaders()}).then(r=>r.json());
+      userList.value = r.code===200 ? r.data.list : [];
+    }
+    const userDialogVisible = ref(false);
+    const editingUser = ref(null);
+    const userForm = reactive({username:'',password:'',nickname:'',phone:'',role:'staff'});
+    const userSaving = ref(false);
+    function showUserDialog(row) {
+      editingUser.value = row;
+      if(row) {
+        Object.assign(userForm, {username:row.username,password:'',nickname:row.nickname,phone:row.phone||'',role:row.role});
+      } else {
+        Object.assign(userForm, {username:'',password:'',nickname:'',phone:'',role:'staff'});
+      }
+      userDialogVisible.value = true;
+    }
+    async function saveUser() {
+      if(!userForm.username.trim()) return ElementPlus.ElMessage.warning('请输入用户名');
+      if(!editingUser.value && !userForm.password) return ElementPlus.ElMessage.warning('请输入密码');
+      userSaving.value = true;
+      try {
+        const url = editingUser.value ? API+'/api/users/'+editingUser.value.id : API+'/api/users';
+        const method = editingUser.value ? 'PUT' : 'POST';
+        const body = editingUser.value
+          ? {nickname:userForm.nickname,phone:userForm.phone,role:userForm.role}
+          : {username:userForm.username,password:userForm.password,nickname:userForm.nickname,phone:userForm.phone,role:userForm.role};
+        const r = await fetch(url,{method,headers:{...authHeaders(),'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());
+        if(r.code===200) {
+          ElementPlus.ElMessage.success(r.msg);
+          userDialogVisible.value = false;
+          loadUsers(); loadStats();
+        } else ElementPlus.ElMessage.error(r.msg);
+      } catch(e) { ElementPlus.ElMessage.error('操作失败'); }
+      userSaving.value = false;
+    }
+    async function toggleUserStatus(row) {
+      try {
+        await ElementPlus.ElMessageBox.confirm(`确定${row.status==='active'?'停用':'启用'}用户 ${row.nickname}？`);
+        const r = await fetch(API+'/api/users/'+row.id,{method:'PUT',headers:{...authHeaders(),'Content-Type':'application/json'},body:JSON.stringify({status:row.status==='active'?'inactive':'active'})}).then(r=>r.json());
+        if(r.code===200) { ElementPlus.ElMessage.success(r.msg); loadUsers(); } else ElementPlus.ElMessage.error(r.msg);
+      } catch(_) {}
+    }
+    async function deleteUser(row) {
+      const r = await fetch(API+'/api/users/'+row.id,{method:'DELETE',headers:authHeaders()}).then(r=>r.json());
+      if(r.code===200) { ElementPlus.ElMessage.success(r.msg); loadUsers(); loadStats(); } else ElementPlus.ElMessage.error(r.msg);
+    }
+    const pwdDialogVisible = ref(false);
+    const resetPwdUser = ref(null);
+    const resetPwdForm = reactive({password:''});
+    const pwdSaving = ref(false);
+    function showPwdDialog(row) {
+      resetPwdUser.value = row;
+      resetPwdForm.password = '';
+      pwdDialogVisible.value = true;
+    }
+    async function resetPassword() {
+      if(!resetPwdForm.password || resetPwdForm.password.length<6) return ElementPlus.ElMessage.warning('密码至少6位');
+      pwdSaving.value = true;
+      const r = await fetch(API+'/api/users/'+resetPwdUser.value.id+'/password',{method:'PUT',headers:{...authHeaders(),'Content-Type':'application/json'},body:JSON.stringify({password:resetPwdForm.password})}).then(r=>r.json());
+      pwdSaving.value = false;
+      if(r.code===200) { ElementPlus.ElMessage.success(r.msg); pwdDialogVisible.value = false; } else ElementPlus.ElMessage.error(r.msg);
+    }
+
+    function authHeaders() { return {Authorization:'Bearer '+token.value}; }
+    function ftn(n){ return n>9999?(n/10000).toFixed(1)+'万':n; }
+
+    const menu = [
+      {id:'dashboard',label:'数据概览',icon:'📊'},
+      {id:'hotels',label:'酒店查询',icon:'🏨'},
+      {id:'orders',label:'订单管理',icon:'📋'},
+      {id:'inventory',label:'库存预警',icon:'⚠️'},
+      {id:'import',label:'数据导入',icon:'📥'},
+      {id:'users',label:'账号管理',icon:'👤',admin:true},
+    ];
+
+    function switchMenu(id) {
+      currentMenu.value = id;
+      if (id === 'hotels' && searchResult.value.length === 0) {
+        searchHotels();
+      }
+    }
+
+
+    onMounted(async () => {
+      if(token.value) {
+        try {
+          const r = await fetch(API+'/api/auth/me',{headers:authHeaders()}).then(r=>r.json());
+          if(r.code===200) { Object.assign(user, r.data); await loadStats(); } else logout();
+        } catch(e) { logout(); }
+      }
+    });
+
+    return {
+      token, user, loading, currentMenu, switchMenu, menu, visibleMenu, today, loginForm, login, logout, stats, ftn,
+      hotelSearch, searchResult, searchLoading, searchHotels, minPrice, hasGroupRoom, viewHotel, viewHotelDetail,
+      hotelDetailVisible, hotelDetail, copyPrice,
+      orders, orderFilter, loadOrders, cancelOrder,
+      bookingLoading, bookForm, bookRooms, bookMinRooms, loadRooms, createBooking, quickBook,
+      alertThreshold, alerts, loadAlerts,
+      uploadHeaders, onImportSuccess, onImportError,
+      userList, userFilter, loadUsers, userDialogVisible, editingUser, userForm, userSaving,
+      showUserDialog, saveUser, toggleUserStatus, deleteUser,
+      pwdDialogVisible, resetPwdUser, resetPwdForm, pwdSaving, showPwdDialog, resetPassword,
+      API
+    };
+  }
+}).use(ElementPlus).mount('#app');
+</script>
+</body>
+</html>

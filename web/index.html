@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>酒店预订 - 全球酒店搜索比价</title>
+<link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app" v-cloak>
+  <!-- ========== 顶部导航 ========== -->
+  <header class="top-header">
+    <div class="header-inner">
+      <div class="logo" @click="goHome">🏨 <span>HotelB2B</span></div>
+      <nav class="main-nav">
+        <a :class="{active: page==='home'}" @click="goHome">首页</a>
+        <a :class="{active: page==='search'}" @click="page='search'">酒店搜索</a>
+        <a :class="{active: page==='my'}" @click="page='my'">我的订单</a>
+      </nav>
+      <div class="header-right">
+        <span v-if="!token" class="login-btn" @click="showLogin=true">登录 / 注册</span>
+        <span v-else class="user-info">👤 {{user?.nickname||'用户'}} <a @click="logout">退出</a></span>
+        <a class="admin-link" href="/admin" target="_blank">管理后台</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========== 首页 ========== -->
+  <main v-if="page==='home'" class="page-home">
+    <!-- 主搜索区 -->
+    <section class="hero">
+      <div class="hero-overlay">
+        <div class="hero-content">
+          <h1>全球酒店搜索预订</h1>
+          <p>覆盖迪拜、撒马尔罕、伊斯坦布尔等热门目的地，直签价格更优</p>
+          <div class="hero-search-box">
+            <div class="search-field">
+              <label>目的地</label>
+              <input v-model="s.keyword" placeholder="城市、酒店名称或关键字" @keyup.enter="doSearch">
+              <div v-if="s.keyword && suggestCities.length" class="suggest-dropdown">
+                <div v-for="c in suggestCities" :key="c" class="suggest-item" @click="s.keyword=c;doSearch()">{{c}}</div>
+              </div>
+            </div>
+            <div class="search-field">
+              <label>入住日期</label>
+              <input type="date" v-model="s.checkIn" :min="today">
+            </div>
+            <div class="search-field">
+              <label>退房日期</label>
+              <input type="date" v-model="s.checkOut" :min="s.checkIn||today">
+            </div>
+            <div class="search-field">
+              <label>客人与房间</label>
+              <div class="guest-trigger" @click="showGuests=!showGuests">
+                {{s.adults}}位成人 · {{s.rooms}}间房
+              </div>
+              <div v-if="showGuests" class="guest-picker">
+                <div class="gp-row"><span>成人</span><span class="gp-ctrl"><button @click="s.adults>1&&s.adults--">−</button><b>{{s.adults}}</b><button @click="s.adults<10&&s.adults++">+</button></span></div>
+                <div class="gp-row"><span>儿童</span><span class="gp-ctrl"><button @click="s.children>0&&s.children--">−</button><b>{{s.children}}</b><button @click="s.children<6&&s.children++">+</button></span></div>
+                <div class="gp-row"><span>房间</span><span class="gp-ctrl"><button @click="s.rooms>1&&s.rooms--">−</button><b>{{s.rooms}}</b><button @click="s.rooms<5&&s.rooms++">+</button></span></div>
+                <button class="gp-apply" @click="showGuests=false">确定</button>
+              </div>
+            </div>
+            <button class="hero-search-btn" @click="doSearch" :disabled="searchLoading">
+              🔍 {{searchLoading?'搜索中...':'搜索酒店'}}
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 热门目的地 -->
+    <section class="section">
+      <h2 class="section-title">热门目的地</h2>
+      <div class="dest-grid">
+        <div class="dest-card" v-for="d in destinations" :key="d.name" @click="s.keyword=d.name;doSearch()">
+          <div class="dest-img" :style="{background: d.gradient}">{{d.icon}}</div>
+          <div class="dest-info">
+            <div class="dest-name">{{d.name}}</div>
+            <div class="dest-count">{{d.count}}家酒店</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 推荐酒店 - 带团房散房分区 -->
+    <section class="section section-grey" v-if="featuredHotels.length">
+      <h2 class="section-title">推荐酒店</h2>
+      <!-- 分区Tab -->
+      <div class="home-tabs">
+        <span :class="{'ht-active':homeTab==='all'}" @click="homeTab='all'">全部推荐</span>
+        <span :class="{'ht-active':homeTab==='group'}" @click="homeTab='group'">
+          👥 团房专区 <small>({{groupFeatured.length}}家，5间起订)</small>
+        </span>
+        <span :class="{'ht-active':homeTab==='individual'}" @click="homeTab='individual'">
+          🏨 散房专区 <small>({{individualFeatured.length}}家，1间起订)</small>
+        </span>
+      </div>
+      <!-- 团房专区 -->
+      <template v-if="homeTab==='group'">
+        <div v-if="groupFeatured.length===0" class="empty-result">暂无可预订团房酒店</div>
+        <div class="hotel-grid" v-else>
+          <div class="hotel-card" v-for="h in groupFeatured" :key="h.hotel_id" @click="viewHotel(h.hotel_id)">
+            <div class="hc-img" :style="{background: hotelGradient(h)}">{{h.hotel_name?.charAt(0)}}</div>
+            <div class="hc-body">
+              <div class="hc-name">{{h.hotel_name}} <span class="hc-star">★ {{h.star_rating}}</span></div>
+              <div class="hc-loc">📍 {{h.address_cn || ''}}</div>
+              <div class="hc-tags">
+                <span :class="h.source==='direct'?'tag-d':'tag-o'">{{h.source==='direct'?'直签':'OTA'}}</span>
+                <span class="tag-g">团房{{h.min_rooms}}间起</span>
+              </div>
+              <div class="hc-price">¥<b>{{h.min_price||'--'}}</b><small>/晚起</small></div>
+            </div>
+          </div>
+        </div>
+      </template>
+      <!-- 散房专区 -->
+      <template v-if="homeTab==='individual'">
+        <div v-if="individualFeatured.length===0" class="empty-result">暂无可预订散房酒店</div>
+        <div class="hotel-grid" v-else>
+          <div class="hotel-card" v-for="h in individualFeatured" :key="h.hotel_id" @click="viewHotel(h.hotel_id)">
+            <div class="hc-img" :style="{background: hotelGradient(h)}">{{h.hotel_name?.charAt(0)}}</div>
+            <div class="hc-body">
+              <div class="hc-name">{{h.hotel_name}} <span class="hc-star">★ {{h.star_rating}}</span></div>
+              <div class="hc-loc">📍 {{h.address_cn || ''}}</div>
+              <div class="hc-tags">
+                <span :class="h.source==='direct'?'tag-d':'tag-o'">{{h.source==='direct'?'直签':'OTA'}}</span>
+                <span class="tag-i">散房</span>
+              </div>
+              <div class="hc-price">¥<b>{{h.min_price||'--'}}</b><small>/晚起</small></div>
+            </div>
+          </div>
+        </div>
+      </template>
+      <!-- 全部推荐（默认） -->
+      <template v-if="homeTab==='all'">
+        <div class="hotel-grid">
+          <div class="hotel-card" v-for="h in featuredHotels" :key="h.hotel_id" @click="viewHotel(h.hotel_id)">
+            <div class="hc-img" :style="{background: hotelGradient(h)}">{{h.hotel_name?.charAt(0)}}</div>
+            <div class="hc-body">
+              <div class="hc-name">{{h.hotel_name}} <span class="hc-star">★ {{h.star_rating}}</span></div>
+              <div class="hc-loc">📍 {{h.address_cn || ''}}</div>
+              <div class="hc-tags">
+                <span :class="h.source==='direct'?'tag-d':'tag-o'">{{h.source==='direct'?'直签':'OTA'}}</span>
+                <span class="tag-g" v-if="h.min_rooms>=5">团房{{h.min_rooms}}间起</span>
+                <span class="tag-i" v-else>散房</span>
+              </div>
+              <div class="hc-price">¥<b>{{h.min_price||'--'}}</b><small>/晚起</small></div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </section>
+
+    <!-- 特色服务 -->
+    <section class="section">
+      <h2 class="section-title">为什么选择我们</h2>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="fc-icon">🏷️</div>
+          <h4>直签价格</h4>
+          <p>24家直签酒店，价格优于OTA平台</p>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon">🔄</div>
+          <h4>实时比价</h4>
+          <p>直签价 vs 携程价 vs Booking价，一目了然</p>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon">👥</div>
+          <h4>团房预订</h4>
+          <p>撒马尔罕酒店支持团房，5间起订更优惠</p>
+        </div>
+        <div class="feature-card">
+          <div class="fc-icon">📞</div>
+          <h4>专属服务</h4>
+          <p>专属客户经理一对一服务</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ========== 搜索结果页 ========== -->
+  <main v-if="page==='search'" class="page-search" v-cloak>
+    <!-- 搜索栏（精简版） -->
+    <div class="search-bar-sticky">
+      <div class="search-bar-inner">
+        <input v-model="s.keyword" placeholder="目的地/酒店名称" class="sb-input">
+        <input type="date" v-model="s.checkIn" :min="today" class="sb-date">
+        <input type="date" v-model="s.checkOut" :min="s.checkIn||today" class="sb-date">
+        <button class="sb-btn" @click="doSearch">搜索</button>
+      </div>
+    </div>
+
+    <div class="search-layout">
+      <!-- 左侧筛选栏 -->
+      <aside class="filter-sidebar">
+        <div class="filter-group">
+          <h4>房间类型</h4>
+          <div class="room-type-tabs">
+            <label class="fl-row" :class="{'rtype-active':f.roomType===''}" @click="f.roomType=''">
+              <input type="radio" value="" v-model="f.roomType" style="display:none"> 全部
+            </label>
+            <label class="fl-row" :class="{'rtype-active':f.roomType==='group'}" @click="f.roomType='group'">
+              <input type="radio" value="group" v-model="f.roomType" style="display:none"> 👥 团房 <small>(5间起)</small>
+            </label>
+            <label class="fl-row" :class="{'rtype-active':f.roomType==='individual'}" @click="f.roomType='individual'">
+              <input type="radio" value="individual" v-model="f.roomType" style="display:none"> 🏨 散房
+            </label>
+          </div>
+        </div>
+        <div class="filter-group">
+          <h4>星级</h4>
+          <label v-for="n in [5,4,3]" :key="n" class="fl-row">
+            <input type="checkbox" :value="n" v-model="f.stars"> {{'★'.repeat(n)}}{{n}}星
+          </label>
+        </div>
+        <div class="filter-group">
+          <h4>来源渠道</h4>
+          <label class="fl-row"><input type="radio" value="" v-model="f.source"> 全部</label>
+          <label class="fl-row"><input type="radio" value="direct" v-model="f.source"> 公司直签</label>
+          <label class="fl-row"><input type="radio" value="ota" v-model="f.source"> OTA渠道</label>
+        </div>
+        <div class="filter-group">
+          <h4>价格区间</h4>
+          <div class="price-range">
+            <input v-model.number="f.priceMin" placeholder="最低" type="number" class="pr-input">
+            <span>—</span>
+            <input v-model.number="f.priceMax" placeholder="最高" type="number" class="pr-input">
+          </div>
+        </div>
+        <div class="filter-group">
+          <h4>目的地</h4>
+          <label v-for="c in filterCities" :key="c" class="fl-row">
+            <input type="checkbox" :value="c" v-model="f.cities"> {{c}}
+          </label>
+        </div>
+        <button class="filter-reset" @click="clearFilters">重置筛选</button>
+      </aside>
+
+      <!-- 右侧结果列表 -->
+      <div class="results-area">
+        <div class="results-header">
+          <div class="rh-count" v-if="!searchLoading">找到 <b>{{filteredResults.length}}</b> 家酒店</div>
+          <div class="rh-sort">
+            <span :class="{active:sortBy==='default'}" @click="sortBy='default'">推荐</span>
+            <span :class="{active:sortBy==='priceAsc'}" @click="sortBy='priceAsc'">价格↑</span>
+            <span :class="{active:sortBy==='priceDesc'}" @click="sortBy='priceDesc'">价格↓</span>
+            <span :class="{active:sortBy==='star'}" @click="sortBy='star'">星级↓</span>
+          </div>
+        </div>
+
+        <el-skeleton v-if="searchLoading" :rows="5" animated></el-skeleton>
+
+        <div v-if="filteredResults.length===0 && !searchLoading" class="empty-result">
+          <div class="empty-icon">🏨</div>
+          <p>没有找到符合条件的酒店</p>
+          <p class="empty-hint">试试其他目的地或放宽筛选条件</p>
+        </div>
+
+        <div v-for="h in sortedResults" :key="h.hotel_id" class="result-card" @click="viewHotel(h.hotel_id)">
+          <div class="rc-img" :style="{background: hotelGradient(h)}">
+            <span class="rc-avatar">{{h.hotel_name?.charAt(0)}}</span>
+          </div>
+          <div class="rc-main">
+            <div class="rc-top">
+              <div>
+                <h3 class="rc-name">{{h.hotel_name}} <span class="rc-star">{{'★'.repeat(h.star_rating)}}</span></h3>
+                <div class="rc-loc">📍 {{h.address_cn || ''}}</div>
+              </div>
+              <div class="rc-score" v-if="h.star_rating>=4">
+                <span class="score-num">{{(h.star_rating*1.7+4).toFixed(1)}}</span>
+                <span class="score-label">评分</span>
+              </div>
+            </div>
+            <div class="rc-tags">
+              <span :class="h.source==='direct'?'tag-d':'tag-o'">{{h.source==='direct'?'公司直签':'OTA'}}</span>
+              <span class="tag-g" v-if="h.min_rooms>=5">团房{{h.min_rooms}}间起</span>
+              <span class="tag-i" v-else-if="h.min_rooms && h.min_rooms<5">散房</span>
+              <span class="tag-i" v-else>散房</span>
+            </div>
+            <div class="rc-bottom">
+              <div class="rc-rooms-info">{{h.rooms?.length||0}}个房型可选</div>
+              <div class="rc-price">
+                <div class="price-label">每晚最低</div>
+                <div class="price-value">¥<b>{{h.min_price||'--'}}</b></div>
+                <div class="price-tax">含税及服务费</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ========== 酒店详情页 ========== -->
+  <main v-if="page==='detail'" class="page-detail" v-cloak>
+    <div class="detail-nav" @click="page='search'">← 返回搜索结果</div>
+    <el-skeleton v-if="detailLoading" :rows="10" animated></el-skeleton>
+
+    <template v-if="!detailLoading && hotel">
+      <!-- 酒店头部 -->
+      <div class="detail-header">
+        <div class="dh-text">
+          <h1>{{hotel.hotel_name}}</h1>
+          <div class="dh-meta">
+            <span>{{'★'.repeat(hotel.star_rating)}} {{hotel.star_rating}}星级</span>
+            <span>📍 {{hotel.address_cn || ''}}</span>
+            <span :class="hotel.source==='direct'?'tag-d':'tag-o'">{{hotel.source==='direct'?'公司直签':'OTA渠道'}}</span>
+          </div>
+          <div class="dh-address">📍 {{hotel.address}}</div>
+        </div>
+      </div>
+
+      <!-- 房型列表 -->
+      <section class="room-section">
+        <h2>可选房型 <span class="room-date">{{detailDate}}</span></h2>
+        <div v-if="!hotel.rooms?.length" class="empty-result">暂无可用房型</div>
+
+        <div v-for="r in hotel.rooms" :key="r.room_type_id" class="room-card">
+          <div class="room-info">
+            <h3>{{r.room_name}}</h3>
+            <div class="room-meta">
+              <span>🛏 {{r.bed_type||'大床/双床'}}</span>
+              <span>👤 最多{{r.max_guests||2}}人</span>
+              <span>🍽 {{r.meal_plan||'含早餐'}}</span>
+              <span v-if="r.min_rooms>=5" class="tag-g">团房 · {{r.min_rooms}}间起订</span>
+              <span v-else class="tag-i">散房 · 1间起订</span>
+            </div>
+            <div class="room-avail">
+              <span v-if="r.inventory?.available_rooms!==undefined">
+                剩余 <b>{{r.inventory.available_rooms}}</b> 间
+                <span v-if="r.inventory.available_rooms<=3" class="tag-low">紧张</span>
+              </span>
+            </div>
+          </div>
+
+          <!-- 价格列 -->
+          <div class="room-prices-compare">
+            <div class="rpc-col" v-if="r.direct?.sales_price">
+              <div class="rpc-label">公司直签价</div>
+              <div class="rpc-price">¥<b>{{r.direct.sales_price}}</b></div>
+              <div class="rpc-sub">含税含服务费</div>
+              <button class="rpc-btn rpc-btn-primary" @click="bookRoom(hotel.hotel_id, r)">
+                立即预订
+              </button>
+            </div>
+            <div class="rpc-col">
+              <div class="rpc-label">携程价</div>
+              <div class="rpc-price rpc-ota" v-if="r.ota?.ctrip">¥<b>{{r.ota.ctrip}}</b></div>
+              <div class="rpc-price rpc-na" v-else>暂无</div>
+            </div>
+            <div class="rpc-col">
+              <div class="rpc-label">Booking价</div>
+              <div class="rpc-price rpc-ota" v-if="r.ota?.booking">¥<b>{{r.ota.booking}}</b></div>
+              <div class="rpc-price rpc-na" v-else>暂无</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </template>
+  </main>
+
+  <!-- ========== 预订确认页 ========== -->
+  <main v-if="page==='booking'" class="page-booking" v-cloak>
+    <div class="booking-nav" @click="page='detail'">← 返回酒店详情</div>
+    <h2>确认预订</h2>
+
+    <div class="booking-layout">
+      <div class="booking-main">
+        <!-- 房型信息 -->
+        <div class="bk-card">
+          <h3>预订信息</h3>
+          <div class="bk-summary">
+            <div class="bk-hotel-name">{{bookingHotel?.hotel_name}}</div>
+            <div class="bk-line">房型：{{bookingRoom?.room_name}}</div>
+            <div class="bk-line">入住：{{s.checkIn}} → 退房：{{s.checkOut}}（共{{calcNights()}}晚）</div>
+            <div class="bk-line">单价：¥{{bookingRoom?.direct?.sales_price||'--'}}/间/晚</div>
+          </div>
+        </div>
+
+        <!-- 预订数量 -->
+        <div class="bk-card">
+          <h3>预订数量</h3>
+          <div class="bk-quantity">
+            <label>房间数</label>
+            <div class="qty-ctrl">
+              <button @click="bookingQty>bkMin&&bookingQty--" :disabled="bookingQty<=bkMin">−</button>
+              <span>{{bookingQty}}</span>
+              <button @click="bookingQty<10&&bookingQty++">+</button>
+            </div>
+            <span v-if="bkMin>=5" class="tag-g" style="margin-left:12px">团房最低{{bkMin}}间</span>
+            <span v-else class="tag-i" style="margin-left:12px">散房 · 1间起订</span>
+          </div>
+        </div>
+
+        <!-- 客人信息 -->
+        <div class="bk-card">
+          <h3>入住人信息</h3>
+          <el-form label-width="80px">
+            <el-form-item label="姓名"><el-input v-model="bookingForm.guest_name" placeholder="请输入姓名"></el-input></el-form-item>
+            <el-form-item label="手机号"><el-input v-model="bookingForm.guest_phone" placeholder="请输入手机号"></el-input></el-form-item>
+            <el-form-item label="备注"><el-input v-model="bookingForm.remark" type="textarea" :rows="2" placeholder="如有特殊需求请注明"></el-input></el-form-item>
+          </el-form>
+        </div>
+      </div>
+
+      <!-- 右侧订单摘要 -->
+      <div class="booking-sidebar">
+        <div class="bs-card">
+          <h3>订单摘要</h3>
+          <div class="bs-row"><span>单价</span><span>¥{{bookingRoom?.direct?.sales_price||0}} × {{bookingQty}}间</span></div>
+          <div class="bs-row"><span>晚数</span><span>{{calcNights()}}晚</span></div>
+          <div class="bs-total"><span>总计</span><span>¥{{bookingQty * (bookingRoom?.direct?.sales_price||0) * calcNights()}}</span></div>
+          <button class="bs-submit" @click="submitBooking" :disabled="submitting">{{submitting?'提交中...':'确认预订'}}</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ========== 我的订单 ========== -->
+  <main v-if="page==='my'" class="page-orders" v-cloak>
+    <h2>我的订单</h2>
+    <div v-if="!token" class="empty-result">
+      <p>请先登录查看订单</p>
+      <button class="hero-search-btn" @click="showLogin=true">登录</button>
+    </div>
+    <el-skeleton v-if="ordersLoading" :rows="5" animated></el-skeleton>
+    <div v-if="!ordersLoading && orders.length===0 && token" class="empty-result">暂无订单</div>
+    <div v-for="o in orders" :key="o.id" class="order-card">
+      <div class="oc-header">
+        <span class="oc-no">{{o.order_no}}</span>
+        <span :class="'oc-status oc-'+o.status">{{statusMap[o.status]||o.status}}</span>
+      </div>
+      <div class="oc-body">
+        <div>{{o.hotel_name}} - {{o.room_name}} · {{o.room_count}}间</div>
+        <div>{{o.check_in}} → {{o.check_out}}</div>
+      </div>
+      <div class="oc-footer">¥{{o.total_price}} · {{o.created_at?.slice(0,10)}}</div>
+    </div>
+  </main>
+
+  <!-- ========== 登录/注册弹窗 ========== -->
+  <el-dialog v-model="showLogin" :title="authMode==='login'?'登录':'注册'" width="400px" :close-on-click-modal="false">
+    <!-- Tab切换 -->
+    <div class="auth-tabs">
+      <span :class="{'auth-tab-active':authMode==='login'}" @click="authMode='login'">登录</span>
+      <span :class="{'auth-tab-active':authMode==='register'}" @click="authMode='register'">注册</span>
+    </div>
+
+    <!-- 登录表单 -->
+    <el-form v-if="authMode==='login'">
+      <el-form-item label="用户名"><el-input v-model="loginForm.username" placeholder="请输入用户名"></el-input></el-form-item>
+      <el-form-item label="密码"><el-input v-model="loginForm.password" type="password" placeholder="请输入密码" @keyup.enter="doLogin"></el-input></el-form-item>
+      <el-button type="primary" @click="doLogin" :loading="loginLoading" style="width:100%">登录</el-button>
+    </el-form>
+
+    <!-- 注册表单 -->
+    <el-form v-if="authMode==='register'">
+      <el-form-item label="用户名"><el-input v-model="regForm.username" placeholder="至少3个字符"></el-input></el-form-item>
+      <el-form-item label="密码"><el-input v-model="regForm.password" type="password" placeholder="至少6个字符" @keyup.enter="doRegister"></el-input></el-form-item>
+      <el-form-item label="确认密码"><el-input v-model="regForm.confirmPwd" type="password" placeholder="再次输入密码" @keyup.enter="doRegister"></el-input></el-form-item>
+      <el-form-item label="昵称"><el-input v-model="regForm.nickname" placeholder="选填，默认同用户名"></el-input></el-form-item>
+      <el-form-item label="手机号"><el-input v-model="regForm.phone" placeholder="选填"></el-input></el-form-item>
+      <el-button type="success" @click="doRegister" :loading="regLoading" style="width:100%">注册</el-button>
+    </el-form>
+  </el-dialog>
+
+  <!-- 页脚 -->
+  <footer class="site-footer">© 2026 HotelB2B · 酒店预订平台 · 服务热线 400-000-0000</footer>
+</div>
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+<script src="https://unpkg.com/element-plus/dist/locale/zh-cn.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
