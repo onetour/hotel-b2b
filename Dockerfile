@@ -1,7 +1,7 @@
 FROM node:18-alpine
 
 # 修改此值强制清除构建缓存 => 重建所有层
-ARG CACHE_BUST=1
+ARG CACHE_BUST=2
 
 WORKDIR /app
 
