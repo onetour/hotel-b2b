@@ -1,13 +1,14 @@
 {
   "name": "hotel-b2b",
   "version": "1.0.0",
-  "description": "",
-  "main": "create_repo.js",
+  "description": "B2B Hotel Booking Platform",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "postinstall": "cd backend && npm install"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs"
+  "engines": {
+    "node": ">=16"
+  },
+  "license": "ISC"
 }
