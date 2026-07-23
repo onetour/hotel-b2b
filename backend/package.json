@@ -10,11 +10,17 @@
   },
   "dependencies": {
     "sql.js": "^1.10.3",
-    "express": "^4.21.0",
+    "express": "4.19.2",
     "jsonwebtoken": "^9.0.2",
     "cors": "^2.8.5",
     "multer": "^1.4.5-lts.1",
     "xlsx": "^0.18.5",
-    "setprototypeof": "1.1.0"
+    "setprototypeof": "1.1.0",
+    "get-intrinsic": "1.2.4",
+    "side-channel": "1.0.6",
+    "object-inspect": "1.13.2"
+  },
+  "overrides": {
+    "get-intrinsic": "1.2.4"
   }
 }
