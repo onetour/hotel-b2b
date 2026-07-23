@@ -17,7 +17,7 @@
     "xlsx": "^0.18.5",
     "setprototypeof": "1.1.0",
     "get-intrinsic": "1.2.4",
-    "side-channel": "1.0.6",
+    "side-channel": "1.0.4",
     "object-inspect": "1.13.2"
   },
   "overrides": {
