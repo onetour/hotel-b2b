@@ -1,0 +1,12 @@
+node_modules
+*.db
+.env
+.git
+.DS_Store
+*.log
+.deploy_config.json
+push_to_github.js
+create_repo.js
+upload_files.js
+add_configs.js
+push_configs.js
