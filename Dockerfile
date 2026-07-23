@@ -1,7 +1,7 @@
 FROM node:18-alpine
 
 # 修改此值强制清除构建缓存
-ARG CACHE_BUST=6
+ARG CACHE_BUST=7
 
 WORKDIR /app
 
@@ -9,7 +9,7 @@ WORKDIR /app
 RUN echo "Cache bust: $CACHE_BUST"
 
 COPY backend/package.json backend/package-lock.json ./backend/
-RUN cd backend && npm ci --production
+RUN cd backend && npm ci --omit=dev
 
 # 只复制源代码文件（不复制 node_modules！）
 COPY backend/server.js ./backend/
